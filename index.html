@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Filter symbols by toggling a list</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+    <script charset="utf-8" src="https://d3js.org/d3.v4.min.js"></script>
+    <script charset="utf-8" src="https://cdnjs.cloudflare.com/ajax/libs/dimple/2.3.0/dimple.latest.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .btnbox {
+            /* position: absolute;
+            top: 10px;
+            left: 20px; */
+
+            background: white;
+            padding: 5px 10px;
+            border-radius: 2px;
+            cursor: pointer;
+            width: 90px;
+            margin-top: 10px;
+        }
+
+        .left-box {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            z-index: 5;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px 20px;
+            max-width: 450px;
+        }
+
+        .echart-box {
+
+            padding: 5px;
+            border-radius: 2px;
+            cursor: pointer;
+            display: none;
+        }
+
+        #select {
+            width: 100%;
+            height: 30px;
+            border-color: #e9e9e9;
+            background: rgba(255, 255, 255, 0);
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+    <div class="left-box">
+        <!-- 地图 -->
+
+        <div class="introduce-box">
+            <h1>introduce text</h1>
+            <p style="word-break: break-all;">
+                dhjasdhjsahdjksahdjksahdjsahdjkhsdjkhasdsajkdhasjkhdjkashasjdhajkshdjksadhksjahdksjahdjksa</p>
+        </div>
+
+        <div class="btnbox" id="btnbox" onclick="changeMap()">British map</div>
+
+        <div class="echart-box" id="echart-box">
+            <select id="select" onchange="changeSelect(this.id)">
+                <option value="Food Products">Food Products</option>
+                <option value="Bread & Cereals">Bread & Cereals</option>
+                <option value="Fish">Fish</option>
+                <option value="Fruit">Fruit</option>
+                <option value="Fruit">Meat</option>
+                <option value="Milk, Cheese & Eggs">Milk, Cheese & Eggs</option>
+                <option value="Oils & Fats">Oils & Fats</option>
+                <option value="Sugar, Jam, Honey, Syrups, Chocolate & Confectionery">Sugar, Jam, Honey, Syrups,
+                    Chocolate &
+                    Confectionery</option>
+                <option value="Vegetables Including Potatoes & Tubers">Vegetables Including Potatoes & Tubers</option>
+            </select>
+            <div id="chartContainer"></div>
+            <div id="chartContainer2"></div>
+        </div>
+
+    </div>
+
+
+    <script>
+        let map = null
+        let popup = null
+        let falge = false
+        initMap()
+
+        function initMap() {
+            mapboxgl.accessToken =
+                'pk.eyJ1IjoibGl5dWFuZG9uZyIsImEiOiJja3p5b3FiNXYwMmN2M2JwZ2x3ZWU0Zno1In0.G3jt3n4LOkU7y2-uUpxiRQ';
+
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/liyuandong/cl2kdxnkg003j14mjt2ptgxbn',
+                center: [-2, 53.37],
+                zoom: 2
+            });
+
+            map.on('load', () => {
+                var scale = new mapboxgl.ScaleControl({
+                    maxWidth: 100,
+                    unit: 'metric'
+                });
+                map.addControl(scale, "bottom-left");
+                map.on('mousemove', (e) => {
+                    if (falge) return
+                    var bbox = [
+                        [e.point.x - 1, e.point.y - 1],
+                        [e.point.x + 1, e.point.y + 1]
+                    ];
+
+                    // mapbox 返回查询要素的图层属性
+                    var features = map.queryRenderedFeatures(bbox, {
+                        layers: ['mc-price-88m7ya']
+                    });
+                    if (features.length > 0) {
+                        let properties = features[0].properties
+                        if (popup) popup.remove()
+                        popup = new mapboxgl.Popup({
+                                closeOnClick: false
+                            })
+                            .setLngLat([e.lngLat.lng, e.lngLat.lat])
+                            .setHTML('<p>' + properties.COUNTRY + ':' + properties.World1_PRICE +
+                                '</p>')
+                            .addTo(map);
+                    }
+                    //
+                });
+            })
+        }
+
+
+        function changeMap() {
+            if (falge) {
+                document.getElementById("btnbox").innerHTML = "British Map"
+                map.setStyle("mapbox://styles/liyuandong/cl2kdxnkg003j14mjt2ptgxbn")
+                document.getElementById("echart-box").style.display = "none"
+            } else {
+                document.getElementById("btnbox").innerHTML = "Word Map"
+                map.setStyle("mapbox://styles/liyuandong/cl2kf27zx003l14mjmt2ctv32")
+                document.getElementById("echart-box").style.display = "block"
+                loadcsv("Food Products")
+                map.zoomTo(5, {
+                    duration: 3000,
+                    // offset: [100, 50]
+                })
+            }
+            falge = !falge
+        }
+
+
+        function changeSelect(id) {
+            var aa = document.getElementById(id);
+            loadcsv(aa.value)
+        }
+
+        let svg = null
+        let svg2 = null
+        let myChart = null
+        let myChart2 = null
+
+        function loadcsv(text) {
+
+            d3.csv("./data.csv", function (data) {
+                data = dimple.filterData(data, "Year", ['2017', '2018', '2019', '2020', '2021', '2022'])
+
+                document.getElementById("chartContainer").innerHTML = "";
+                document.getElementById("chartContainer2").innerHTML = "";
+                svg = dimple.newSvg("#chartContainer", 450, 300);
+                svg1 = dimple.newSvg("#chartContainer2", 450, 300);
+                myChart = new dimple.chart(svg, data);
+                myChart.defaultColors = [
+                    new dimple.color("#EA4716"),
+                ];
+                myChart.setBounds(60, 30, 350, 250);
+                var x = myChart.addCategoryAxis("x", ["Year", "Time"]);
+                x.addGroupOrderRule("Date");
+                myChart.addMeasureAxis("y", text + " Index");
+                var s = myChart.addSeries("Owner", dimple.plot.line);
+                myChart.assignColor("All", "red");
+                s.barGap = 0.05;
+                myChart.draw();
+                // svg.selectAll("path.dimple-proj").style("stroke-dasharray", "2"); // Some minor stying changes using the svg selectAll statement. Make the projected data a dashed line and the grid colour lighter.
+                // svg.selectAll("path.domain").style("stroke", "#CCC");
+                // svg.selectAll("g.tick line").style("stroke", "#CCC");
+
+                
+                myChart2 = new dimple.chart(svg1, data);
+                myChart2.setBounds(60, 30, 350, 250);
+                myChart2.defaultColors = [
+                    new dimple.color("#70AE47"),
+                ];
+                var x = myChart2.addCategoryAxis("x", ["Year", "Time"]);
+                x.addGroupOrderRule("Date");
+                myChart2.addMeasureAxis("y", text + " Rate");
+                var s = myChart2.addSeries("Owner", dimple.plot.line);
+                s.barGap = 0.05;
+                myChart2.draw();
+            });
+        }
+    </script>
+
+</body>
+
+</html>
